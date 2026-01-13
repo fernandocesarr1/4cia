@@ -14,16 +14,15 @@ import {
   getAfastamentos, 
   calcularStatus, 
   exportData,
-  seedDemoData 
+  seedDemoData,
+  getTodayString
 } from "@/lib/store";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [dataReferencia, setDataReferencia] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [dataReferencia, setDataReferencia] = useState(getTodayString());
   const [searchQuery, setSearchQuery] = useState("");
   const [policiais, setPoliciais] = useState<PolicialComStatus[]>([]);
 

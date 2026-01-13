@@ -8,6 +8,60 @@ import {
   CURRENT_USER
 } from "@/types";
 
+// ============================================
+// DATE UTILITIES - PURE DATE HANDLING (NO TIMEZONE)
+// ============================================
+
+/**
+ * Parse date string YYYY-MM-DD to local date components
+ * CRITICAL: Never use new Date(dateString) as it interprets as UTC
+ */
+function parseDatePure(dateStr: string): { year: number; month: number; day: number } {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return { year, month, day };
+}
+
+/**
+ * Compare two YYYY-MM-DD date strings
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
+ */
+function compareDates(a: string, b: string): number {
+  // String comparison works for YYYY-MM-DD format
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+/**
+ * Check if date is within range (inclusive)
+ * All parameters must be YYYY-MM-DD strings
+ */
+function isDateInRange(date: string, start: string, end: string): boolean {
+  return date >= start && date <= end;
+}
+
+/**
+ * Check if two date ranges overlap
+ * All parameters must be YYYY-MM-DD strings
+ */
+function dateRangesOverlap(
+  start1: string, end1: string, 
+  start2: string, end2: string
+): boolean {
+  return start1 <= end2 && end1 >= start2;
+}
+
+/**
+ * Get today's date as YYYY-MM-DD string in local timezone
+ */
+function getTodayString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // Storage keys
 const STORAGE_KEYS = {
   policiais: "sigo_policiais",
@@ -188,7 +242,7 @@ export function getAfastamentos(): Afastamento[] {
 export function getAfastamentosByPolicialId(policialId: number): Afastamento[] {
   return getAfastamentos()
     .filter(a => a.policialId === policialId)
-    .sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime());
+    .sort((a, b) => compareDates(b.dataInicio, a.dataInicio));
 }
 
 export function getAfastamentoById(id: number): Afastamento | undefined {
@@ -206,13 +260,8 @@ function checkAfastamentoOverlap(
   for (const af of afastamentos) {
     if (excludeId && af.id === excludeId) continue;
     
-    const novoInicio = new Date(dataInicio);
-    const novoFim = new Date(dataFim);
-    const existInicio = new Date(af.dataInicio);
-    const existFim = new Date(af.dataFim);
-
-    // Check overlap
-    if (novoInicio <= existFim && novoFim >= existInicio) {
+    // Use pure string comparison for dates (YYYY-MM-DD format)
+    if (dateRangesOverlap(dataInicio, dataFim, af.dataInicio, af.dataFim)) {
       return af;
     }
   }
@@ -223,8 +272,8 @@ function checkAfastamentoOverlap(
 export function createAfastamento(data: AfastamentoFormData): { success: boolean; error?: string; afastamento?: Afastamento } {
   initStorage();
 
-  // Validate dates
-  if (new Date(data.dataFim) < new Date(data.dataInicio)) {
+  // Validate dates using pure string comparison
+  if (compareDates(data.dataFim, data.dataInicio) < 0) {
     return { success: false, error: "Data fim deve ser igual ou posterior à data início" };
   }
 
@@ -272,8 +321,8 @@ export function updateAfastamento(id: number, data: Partial<AfastamentoFormData>
 
   const updated = { ...afastamentos[index], ...data };
 
-  // Validate dates
-  if (new Date(updated.dataFim) < new Date(updated.dataInicio)) {
+  // Validate dates using pure string comparison
+  if (compareDates(updated.dataFim, updated.dataInicio) < 0) {
     return { success: false, error: "Data fim deve ser igual ou posterior à data início" };
   }
 
@@ -325,16 +374,13 @@ export function deleteAfastamento(id: number): { success: boolean; error?: strin
   return { success: true };
 }
 
-// Status calculation
+// Status calculation - uses pure date string comparison
 export function calcularStatus(policialId: number, dataReferencia: string): StatusResult {
   const afastamentos = getAfastamentosByPolicialId(policialId);
-  const refDate = new Date(dataReferencia);
 
   for (const af of afastamentos) {
-    const inicio = new Date(af.dataInicio);
-    const fim = new Date(af.dataFim);
-
-    if (refDate >= inicio && refDate <= fim) {
+    // Use pure string comparison for YYYY-MM-DD format
+    if (isDateInRange(dataReferencia, af.dataInicio, af.dataFim)) {
       return { status: "AFASTADO", afastamentoAtivo: af };
     }
   }
@@ -386,16 +432,21 @@ export function exportData(): string {
   return JSON.stringify(data, null, 2);
 }
 
-// Helpers
+// Helpers - Pure date formatting without Date object timezone issues
 export function formatDateBR(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("pt-BR");
+  // dateStr is YYYY-MM-DD format - parse manually to avoid timezone issues
+  const { year, month, day } = parseDatePure(dateStr);
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 }
 
 export function formatDateTimeBR(dateStr: string): string {
+  // For datetime strings (ISO format), we can use Date safely
   const date = new Date(dateStr);
   return date.toLocaleString("pt-BR");
 }
+
+// Export utility functions for use in other components
+export { getTodayString, isDateInRange, compareDates };
 
 // Seed data for demo
 export function seedDemoData(): void {
@@ -414,30 +465,39 @@ export function seedDemoData(): void {
     createPolicial(p);
   }
 
-  // Add some afastamentos
-  const today = new Date();
-  const futureDate = new Date(today);
-  futureDate.setDate(futureDate.getDate() + 10);
+  // Add some afastamentos using pure date string manipulation
+  const today = getTodayString();
+  
+  // Helper to add days to a YYYY-MM-DD string
+  function addDays(dateStr: string, days: number): string {
+    const { year, month, day } = parseDatePure(dateStr);
+    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+    date.setDate(date.getDate() + days);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  const futureDate = addDays(today, 10);
 
   createAfastamento({
     policialId: 2,
     tipo: "MEDICO",
-    dataInicio: today.toISOString().split("T")[0],
-    dataFim: futureDate.toISOString().split("T")[0],
+    dataInicio: today,
+    dataFim: futureDate,
     documento: "Atestado 2024/001",
     observacao: "Tratamento médico programado",
   });
 
-  const pastStart = new Date(today);
-  pastStart.setDate(pastStart.getDate() - 5);
-  const pastEnd = new Date(today);
-  pastEnd.setDate(pastEnd.getDate() + 5);
+  const pastStart = addDays(today, -5);
+  const pastEnd = addDays(today, 5);
 
   createAfastamento({
     policialId: 4,
     tipo: "FERIAS",
-    dataInicio: pastStart.toISOString().split("T")[0],
-    dataFim: pastEnd.toISOString().split("T")[0],
+    dataInicio: pastStart,
+    dataFim: pastEnd,
     documento: "Portaria 123/2026",
   });
 }

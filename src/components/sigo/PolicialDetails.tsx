@@ -36,7 +36,8 @@ import {
   getAfastamentosByPolicialId, 
   deleteAfastamento,
   formatDateBR,
-  calcularStatus
+  calcularStatus,
+  getTodayString
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AfastamentoForm } from "./AfastamentoForm";
@@ -78,7 +79,8 @@ export function PolicialDetails() {
     );
   }
 
-  const currentStatus = calcularStatus(policial.id, new Date().toISOString().split("T")[0]);
+  const today = getTodayString();
+  const currentStatus = calcularStatus(policial.id, today);
   const postoLabel = POSTOS.find(p => p.value === policial.posto)?.label || policial.posto;
 
   const handleDeleteAfastamento = () => {
@@ -105,7 +107,7 @@ export function PolicialDetails() {
     return TIPOS_AFASTAMENTO.find(t => t.value === tipo)?.label || tipo;
   };
 
-  return (
+                  return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -219,8 +221,9 @@ export function PolicialDetails() {
                 </tr>
               </thead>
               <tbody>
-                {afastamentos.map((af) => {
-                  const isAtivo = new Date() >= new Date(af.dataInicio) && new Date() <= new Date(af.dataFim);
+              {afastamentos.map((af) => {
+                  // Use pure string comparison for YYYY-MM-DD dates
+                  const isAtivo = today >= af.dataInicio && today <= af.dataFim;
                   return (
                     <tr key={af.id} className={isAtivo ? "row-afastado" : ""}>
                       <td>
