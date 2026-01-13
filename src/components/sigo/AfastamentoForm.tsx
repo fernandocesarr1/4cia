@@ -32,7 +32,8 @@ import {
   updateAfastamento, 
   getAfastamentoById, 
   getPoliciaisAtivos,
-  getPolicialById 
+  getPolicialById,
+  getTodayString
 } from "@/lib/store";
 
 interface AfastamentoFormProps {
@@ -51,11 +52,12 @@ export function AfastamentoForm({ afastamentoId, preSelectedPolicialId, onSucces
   const initialPolicialId = preSelectedPolicialId || (policialIdFromUrl ? parseInt(policialIdFromUrl) : 0);
 
   const [policiais, setPoliciais] = useState<Policial[]>([]);
+  const todayStr = getTodayString();
   const [formData, setFormData] = useState<AfastamentoFormData>({
     policialId: initialPolicialId,
     tipo: "MEDICO",
-    dataInicio: new Date().toISOString().split("T")[0],
-    dataFim: new Date().toISOString().split("T")[0],
+    dataInicio: todayStr,
+    dataFim: todayStr,
     documento: "",
     observacao: "",
   });

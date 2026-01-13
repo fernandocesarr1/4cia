@@ -27,7 +27,9 @@ import {
   getAfastamentos, 
   getPolicialById, 
   deleteAfastamento, 
-  formatDateBR 
+  formatDateBR,
+  getTodayString,
+  compareDates
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +58,7 @@ export default function AfastamentosPage() {
         policialNome: policial?.nomeGuerra || "",
         policialPosto: policial?.posto || "",
       };
-    }).sort((a, b) => new Date(b.dataInicio).getTime() - new Date(a.dataInicio).getTime());
+    }).sort((a, b) => compareDates(b.dataInicio, a.dataInicio));
     setAfastamentos(enriched);
   };
 
@@ -108,8 +110,8 @@ export default function AfastamentosPage() {
   };
 
   const isAtivo = (af: Afastamento) => {
-    const today = new Date();
-    return today >= new Date(af.dataInicio) && today <= new Date(af.dataFim);
+    const today = getTodayString();
+    return today >= af.dataInicio && today <= af.dataFim;
   };
 
   return (
