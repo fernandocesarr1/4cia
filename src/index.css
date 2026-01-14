@@ -73,13 +73,17 @@
     --sidebar-border: 210 60% 25%;
     --sidebar-ring: 210 100% 50%;
 
-    /* Custom SIGO tokens */
+    /* Custom SIGO tokens - Terminologia BG PM 166/2006 */
     --header-gradient-start: 210 100% 18%;
     --header-gradient-end: 210 80% 25%;
-    --table-row-pleno: 142 50% 96%;
+    /* APTO: Verde (Apto para o SPM) */
+    --table-row-apto: 142 50% 96%;
+    /* AFASTADO: Vermelho (Temporariamente inapto) */
     --table-row-afastado: 0 60% 96%;
-    --badge-pleno: 142 71% 45%;
+    --badge-apto: 142 71% 45%;
     --badge-afastado: 0 84% 60%;
+    /* APTO COM RESTRIÇÃO: Laranja (para uso futuro) */
+    --warning-light: 38 70% 95%;
   }
 
   .dark {
@@ -125,8 +129,10 @@
     --sidebar-border: 210 30% 18%;
     --sidebar-ring: 210 80% 60%;
 
-    --table-row-pleno: 142 40% 12%;
+    /* Status tokens - Terminologia BG PM 166/2006 */
+    --table-row-apto: 142 40% 12%;
     --table-row-afastado: 0 40% 12%;
+    --warning-light: 38 50% 15%;
   }
 }
 
@@ -153,9 +159,9 @@
 }
 
 @layer components {
-  /* Status row colors */
-  .row-pleno {
-    background-color: hsl(var(--table-row-pleno));
+  /* Status row colors - Terminologia BG PM 166/2006 */
+  .row-apto {
+    background-color: hsl(var(--table-row-apto));
   }
 
   .row-afastado {
@@ -185,7 +191,8 @@
     @apply bg-card border-border;
   }
 
-  .stats-card-pleno {
+  /* APTO: Verde - Terminologia BG PM 166/2006 */
+  .stats-card-apto {
     @apply bg-success-light border-success/30;
   }
 
@@ -193,8 +200,8 @@
     @apply bg-danger-light border-danger/30;
   }
 
-  /* Badge variants */
-  .badge-pleno {
+  /* Badge variants - Terminologia BG PM 166/2006 */
+  .badge-apto {
     @apply bg-success text-success-foreground;
   }
 

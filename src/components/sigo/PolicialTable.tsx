@@ -49,12 +49,13 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
               const isAfastado = policial.statusResult.status === "AFASTADO";
               const afastamento = policial.statusResult.afastamentoAtivo;
 
+              // Status conforme BG PM 166/2006
               return (
                 <tr
                   key={policial.id}
                   className={cn(
                     "animate-fade-in",
-                    isAfastado ? "row-afastado" : "row-pleno"
+                    isAfastado ? "row-afastado" : "row-apto"
                   )}
                 >
                   <td>
@@ -71,13 +72,14 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
                     </Badge>
                   </td>
                   <td>
+                    {/* Badge com terminologia BG PM 166/2006 */}
                     <Badge
                       className={cn(
                         "font-medium",
-                        isAfastado ? "badge-afastado" : "badge-pleno"
+                        isAfastado ? "badge-afastado" : "badge-apto"
                       )}
                     >
-                      {policial.statusResult.status}
+                      {policial.statusResult.status === "APTO" ? "✓ APTO" : "✕ AFASTADO"}
                     </Badge>
                   </td>
                   <td>
