@@ -1,17 +1,19 @@
-import { Users, UserCheck, UserX } from "lucide-react";
+import { Users, UserCheck, UserX, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Props renomeadas conforme BG PM 166/2006
+// Props conforme BG PM 166/2006
 interface StatsCardsProps {
   total: number;
   aptos: number;
+  aptosComRestricao: number;
   afastados: number;
 }
 
 // Terminologia conforme BG PM 166/2006:
 // APTO: Apto para o Serviço Policial Militar
+// APTO_COM_RESTRICAO: Apto com limitações funcionais
 // AFASTADO: Temporariamente inapto para o serviço
-export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
+export function StatsCards({ total, aptos, aptosComRestricao, afastados }: StatsCardsProps) {
   const cards = [
     {
       label: "Efetivo Total",
@@ -28,6 +30,13 @@ export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
       description: "Aptos para o Serviço Policial Militar",
     },
     {
+      label: "Aptos com Restrição",
+      value: aptosComRestricao,
+      icon: AlertTriangle,
+      variant: "restricao" as const,
+      description: "Aptos com limitações funcionais (BG PM 166/2006)",
+    },
+    {
       label: "Afastados",
       value: afastados,
       icon: UserX,
@@ -37,7 +46,7 @@ export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card) => (
         <div
           key={card.label}
@@ -45,6 +54,7 @@ export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
             "stats-card p-5 card-hover",
             card.variant === "total" && "stats-card-total",
             card.variant === "apto" && "stats-card-apto",
+            card.variant === "restricao" && "stats-card-restricao",
             card.variant === "afastado" && "stats-card-afastado"
           )}
         >
@@ -65,6 +75,7 @@ export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
                 "p-3 rounded-xl",
                 card.variant === "total" && "bg-primary/10 text-primary",
                 card.variant === "apto" && "bg-success/20 text-success",
+                card.variant === "restricao" && "bg-warning/20 text-warning",
                 card.variant === "afastado" && "bg-danger/20 text-danger"
               )}
             >

@@ -4,14 +4,21 @@ import { Search, Plus, Download, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { StatsCards } from "@/components/sigo/StatsCards";
 import { PolicialTable } from "@/components/sigo/PolicialTable";
 import { AfastamentoStats } from "@/components/sigo/AfastamentoStats";
+import { RestricaoForm } from "@/components/sigo/RestricaoForm";
 import { PolicialComStatus, Afastamento } from "@/types";
 import { 
   getPoliciaisAtivos, 
-  getAfastamentos, 
   calcularStatus, 
   exportData,
   seedDemoData,
@@ -25,9 +32,10 @@ export default function Dashboard() {
   const [dataReferencia, setDataReferencia] = useState(getTodayString());
   const [searchQuery, setSearchQuery] = useState("");
   const [policiais, setPoliciais] = useState<PolicialComStatus[]>([]);
+  const [showRestricaoModal, setShowRestricaoModal] = useState(false);
+  const [selectedPolicialId, setSelectedPolicialId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Seed demo data on first load
     seedDemoData();
     loadPoliciais();
   }, [dataReferencia]);
@@ -56,8 +64,9 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const total = policiais.length;
     const aptos = policiais.filter(p => p.statusResult.status === "APTO").length;
+    const aptosComRestricao = policiais.filter(p => p.statusResult.status === "APTO_COM_RESTRICAO").length;
     const afastados = policiais.filter(p => p.statusResult.status === "AFASTADO").length;
-    return { total, aptos, afastados };
+    return { total, aptos, aptosComRestricao, afastados };
   }, [policiais]);
 
   const afastamentosAtivos = useMemo(() => {
@@ -89,6 +98,11 @@ export default function Dashboard() {
 
   const handleNewAfastamento = (id: number) => {
     navigate(`/afastamentos/novo?policialId=${id}`);
+  };
+
+  const handleNewRestricao = (id: number) => {
+    setSelectedPolicialId(id);
+    setShowRestricaoModal(true);
   };
 
   return (
@@ -123,6 +137,7 @@ export default function Dashboard() {
       <StatsCards
         total={stats.total}
         aptos={stats.aptos}
+        aptosComRestricao={stats.aptosComRestricao}
         afastados={stats.afastados}
       />
 
@@ -165,7 +180,28 @@ export default function Dashboard() {
         policiais={filteredPoliciais}
         onViewDetails={handleViewDetails}
         onNewAfastamento={handleNewAfastamento}
+        onNewRestricao={handleNewRestricao}
       />
+
+      {/* Restricao Modal */}
+      <Dialog open={showRestricaoModal} onOpenChange={setShowRestricaoModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Registrar Restrição</DialogTitle>
+            <DialogDescription>
+              Registrar restrição conforme BG PM 166/2006
+            </DialogDescription>
+          </DialogHeader>
+          <RestricaoForm
+            preSelectedPolicialId={selectedPolicialId || undefined}
+            onSuccess={() => {
+              setShowRestricaoModal(false);
+              setSelectedPolicialId(null);
+              loadPoliciais();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
