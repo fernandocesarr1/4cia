@@ -29,7 +29,7 @@ function parseDatePure(dateStr: string): { year: number; month: number; day: num
  * Compare two YYYY-MM-DD date strings
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  */
-function compareDates(a: string, b: string): number {
+export function compareDates(a: string, b: string): number {
   // String comparison works for YYYY-MM-DD format
   if (a < b) return -1;
   if (a > b) return 1;
@@ -70,7 +70,7 @@ function getTodayString(): string {
  * Calculate total days between two dates (inclusive)
  * All parameters must be YYYY-MM-DD strings
  */
-function calculateTotalDays(start: string, end: string): number {
+export function calculateTotalDays(start: string, end: string): number {
   const { year: y1, month: m1, day: d1 } = parseDatePure(start);
   const { year: y2, month: m2, day: d2 } = parseDatePure(end);
   const date1 = new Date(y1, m1 - 1, d1);
@@ -675,7 +675,7 @@ export function formatDateTimeBR(dateStr: string): string {
 }
 
 // Export utility functions for use in other components
-export { getTodayString, isDateInRange, compareDates, calculateTotalDays, addDays };
+export { getTodayString, isDateInRange, addDays };
 
 // Seed data for demo
 export function seedDemoData(): void {
