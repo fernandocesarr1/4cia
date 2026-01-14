@@ -23,7 +23,7 @@ export function AuditoriaTable() {
 
   const logs = useMemo(() => {
     return getAuditoriaLogsFiltered(
-      entidadeFilter as "policiais" | "afastamentos" | "todos",
+      entidadeFilter as "policiais" | "afastamentos" | "restricoes" | "todos",
       dataInicioFilter || undefined,
       dataFimFilter || undefined,
       usuarioFilter || undefined
@@ -101,6 +101,7 @@ export function AuditoriaTable() {
                 <SelectItem value="todos">Todas</SelectItem>
                 <SelectItem value="policiais">Policiais</SelectItem>
                 <SelectItem value="afastamentos">Afastamentos</SelectItem>
+                <SelectItem value="restricoes">Restrições</SelectItem>
               </SelectContent>
             </Select>
           </div>

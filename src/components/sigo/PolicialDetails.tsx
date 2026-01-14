@@ -7,7 +7,9 @@ import {
   Trash2, 
   Calendar,
   FileText,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +17,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -29,18 +30,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { Policial, Afastamento, POSTOS, TIPOS_AFASTAMENTO } from "@/types";
+import { Policial, Afastamento, Restricao, POSTOS, TIPOS_AFASTAMENTO, CODIGOS_RESTRICAO } from "@/types";
 import { 
   getPolicialById, 
-  getAfastamentosByPolicialId, 
+  getAfastamentosByPolicialId,
+  getRestricoesByPolicialId,
   deleteAfastamento,
+  deleteRestricao,
   formatDateBR,
   calcularStatus,
   getTodayString
 } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { AfastamentoForm } from "./AfastamentoForm";
+import { RestricaoForm } from "./RestricaoForm";
 
 export function PolicialDetails() {
   const { id } = useParams<{ id: string }>();
@@ -49,9 +59,12 @@ export function PolicialDetails() {
 
   const [policial, setPolicial] = useState<Policial | null>(null);
   const [afastamentos, setAfastamentos] = useState<Afastamento[]>([]);
+  const [restricoes, setRestricoes] = useState<Restricao[]>([]);
   const [showNewAfastamento, setShowNewAfastamento] = useState(false);
+  const [showNewRestricao, setShowNewRestricao] = useState(false);
   const [editingAfastamento, setEditingAfastamento] = useState<Afastamento | null>(null);
   const [deletingAfastamento, setDeletingAfastamento] = useState<Afastamento | null>(null);
+  const [deletingRestricao, setDeletingRestricao] = useState<Restricao | null>(null);
 
   const loadData = () => {
     if (id) {
@@ -59,6 +72,7 @@ export function PolicialDetails() {
       if (p) {
         setPolicial(p);
         setAfastamentos(getAfastamentosByPolicialId(p.id));
+        setRestricoes(getRestricoesByPolicialId(p.id));
       }
     }
   };
@@ -105,6 +119,40 @@ export function PolicialDetails() {
 
   const getTipoLabel = (tipo: string) => {
     return TIPOS_AFASTAMENTO.find(t => t.value === tipo)?.label || tipo;
+  };
+
+  const getCodigoLabel = (codigo: string) => {
+    return CODIGOS_RESTRICAO.find(c => c.value === codigo)?.label || codigo;
+  };
+
+  const handleDeleteRestricao = () => {
+    if (deletingRestricao) {
+      const result = deleteRestricao(deletingRestricao.id);
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: "Restrição removida com sucesso",
+        });
+        loadData();
+      } else {
+        toast({
+          title: "Erro",
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+      setDeletingRestricao(null);
+    }
+  };
+
+  const getStatusBadge = () => {
+    if (currentStatus.status === "AFASTADO") {
+      return <Badge className="badge-afastado text-base px-3 py-1">✕ AFASTADO</Badge>;
+    }
+    if (currentStatus.status === "APTO_COM_RESTRICAO") {
+      return <Badge className="badge-restricao text-base px-3 py-1">⚠ APTO COM RESTRIÇÃO</Badge>;
+    }
+    return <Badge className="badge-apto text-base px-3 py-1">✓ APTO</Badge>;
   };
 
                   return (
@@ -159,20 +207,21 @@ export function PolicialDetails() {
             <div>
               <p className="text-sm text-muted-foreground mb-1">Status Atual</p>
               {/* Badge com terminologia BG PM 166/2006 */}
-              <Badge
-                className={cn(
-                  "text-base px-3 py-1",
-                  currentStatus.status === "APTO" ? "badge-apto" : "badge-afastado"
-                )}
-              >
-                {currentStatus.status === "APTO" ? "✓ APTO" : "✕ AFASTADO"}
-              </Badge>
+              {getStatusBadge()}
             </div>
             {currentStatus.afastamentoAtivo && (
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Afastamento Ativo</p>
                 <p className="font-medium">
                   {getTipoLabel(currentStatus.afastamentoAtivo.tipo)} ({formatDateBR(currentStatus.afastamentoAtivo.dataInicio)} - {formatDateBR(currentStatus.afastamentoAtivo.dataFim)})
+                </p>
+              </div>
+            )}
+            {currentStatus.restricaoAtiva && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Restrição Ativa</p>
+                <p className="font-medium">
+                  {currentStatus.restricaoAtiva.codigos.join(", ")} ({formatDateBR(currentStatus.restricaoAtiva.dataInicio)} - {formatDateBR(currentStatus.restricaoAtiva.dataFim)})
                 </p>
               </div>
             )}
@@ -277,6 +326,115 @@ export function PolicialDetails() {
         )}
       </div>
 
+      {/* Histórico de Restrições */}
+      <div className="bg-card rounded-xl border">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-warning" />
+            <div>
+              <h2 className="text-lg font-bold">Histórico de Restrições</h2>
+              <p className="text-sm text-muted-foreground">
+                {restricoes.length} registro(s) - Conforme BG PM 166/2006
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setShowNewRestricao(true)} variant="outline" className="border-warning text-warning hover:bg-warning/10">
+            <Plus className="h-4 w-4 mr-2" />
+            Registrar Restrição
+          </Button>
+        </div>
+
+        {restricoes.length === 0 ? (
+          <div className="p-12 text-center">
+            <Shield className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium text-muted-foreground">
+              Nenhuma restrição registrada
+            </h3>
+            <p className="text-sm text-muted-foreground/70 mt-1">
+              Este policial não possui histórico de restrições funcionais
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table-sigo">
+              <thead>
+                <tr>
+                  <th>Códigos</th>
+                  <th>Data Início</th>
+                  <th>Data Fim</th>
+                  <th>Total Dias</th>
+                  <th>Observação</th>
+                  <th>Status</th>
+                  <th className="text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <TooltipProvider>
+                  {restricoes.map((rest) => {
+                    const isAtiva = today >= rest.dataInicio && today <= rest.dataFim;
+                    return (
+                      <tr key={rest.id} className={isAtiva ? "row-restricao" : ""}>
+                        <td>
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {rest.codigos.map((codigo) => (
+                              <Tooltip key={codigo}>
+                                <TooltipTrigger asChild>
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs border-warning text-warning cursor-help"
+                                  >
+                                    {codigo}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{getCodigoLabel(codigo)}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </td>
+                        <td>{formatDateBR(rest.dataInicio)}</td>
+                        <td>{formatDateBR(rest.dataFim)}</td>
+                        <td>
+                          <span className="font-medium">{rest.totalDias} dias</span>
+                        </td>
+                        <td>
+                          <span className="text-sm text-muted-foreground truncate-2 max-w-xs">
+                            {rest.observacao || "-"}
+                          </span>
+                        </td>
+                        <td>
+                          {isAtiva ? (
+                            <Badge className="badge-restricao">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Ativa
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Encerrada</Badge>
+                          )}
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeletingRestricao(rest)}
+                              className="text-danger hover:text-danger hover:bg-danger/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </TooltipProvider>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* New Afastamento Dialog */}
       <Dialog open={showNewAfastamento} onOpenChange={setShowNewAfastamento}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -315,7 +473,26 @@ export function PolicialDetails() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* New Restricao Dialog */}
+      <Dialog open={showNewRestricao} onOpenChange={setShowNewRestricao}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova Restrição</DialogTitle>
+            <DialogDescription>
+              Registrar restrição funcional para {policial.posto} {policial.nomeGuerra} conforme BG PM 166/2006
+            </DialogDescription>
+          </DialogHeader>
+          <RestricaoForm
+            preSelectedPolicialId={policial.id}
+            onSuccess={() => {
+              setShowNewRestricao(false);
+              loadData();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Afastamento Confirmation */}
       <AlertDialog open={!!deletingAfastamento} onOpenChange={() => setDeletingAfastamento(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -329,6 +506,28 @@ export function PolicialDetails() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAfastamento}
+              className="bg-danger hover:bg-danger/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Restricao Confirmation */}
+      <AlertDialog open={!!deletingRestricao} onOpenChange={() => setDeletingRestricao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta restrição com códigos {deletingRestricao?.codigos.join(", ")}?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRestricao}
               className="bg-danger hover:bg-danger/90"
             >
               Excluir
