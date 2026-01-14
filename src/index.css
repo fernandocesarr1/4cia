@@ -78,11 +78,13 @@
     --header-gradient-end: 210 80% 25%;
     /* APTO: Verde (Apto para o SPM) */
     --table-row-apto: 142 50% 96%;
+    /* APTO COM RESTRIÇÃO: Laranja (Apto com limitações funcionais) */
+    --table-row-restricao: 38 70% 95%;
     /* AFASTADO: Vermelho (Temporariamente inapto) */
     --table-row-afastado: 0 60% 96%;
     --badge-apto: 142 71% 45%;
+    --badge-restricao: 38 92% 50%;
     --badge-afastado: 0 84% 60%;
-    /* APTO COM RESTRIÇÃO: Laranja (para uso futuro) */
     --warning-light: 38 70% 95%;
   }
 
@@ -131,7 +133,9 @@
 
     /* Status tokens - Terminologia BG PM 166/2006 */
     --table-row-apto: 142 40% 12%;
+    --table-row-restricao: 38 50% 15%;
     --table-row-afastado: 0 40% 12%;
+    --badge-restricao: 38 80% 45%;
     --warning-light: 38 50% 15%;
   }
 }
@@ -162,6 +166,10 @@
   /* Status row colors - Terminologia BG PM 166/2006 */
   .row-apto {
     background-color: hsl(var(--table-row-apto));
+  }
+
+  .row-restricao {
+    background-color: hsl(var(--table-row-restricao));
   }
 
   .row-afastado {
@@ -196,6 +204,12 @@
     @apply bg-success-light border-success/30;
   }
 
+  /* APTO COM RESTRIÇÃO: Laranja - Terminologia BG PM 166/2006 */
+  .stats-card-restricao {
+    background-color: hsl(var(--warning-light));
+    border-color: hsl(var(--warning) / 0.3);
+  }
+
   .stats-card-afastado {
     @apply bg-danger-light border-danger/30;
   }
@@ -203,6 +217,11 @@
   /* Badge variants - Terminologia BG PM 166/2006 */
   .badge-apto {
     @apply bg-success text-success-foreground;
+  }
+
+  .badge-restricao {
+    background-color: hsl(var(--badge-restricao));
+    color: white;
   }
 
   .badge-afastado {

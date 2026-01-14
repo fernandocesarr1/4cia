@@ -1,7 +1,8 @@
-import { Eye, Plus, UserX } from "lucide-react";
+import { Eye, Plus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PolicialComStatus, TIPOS_AFASTAMENTO } from "@/types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PolicialComStatus, TIPOS_AFASTAMENTO, CODIGOS_RESTRICAO } from "@/types";
 import { formatDateBR } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -9,13 +10,19 @@ interface PolicialTableProps {
   policiais: PolicialComStatus[];
   onViewDetails: (id: number) => void;
   onNewAfastamento: (id: number) => void;
+  onNewRestricao: (id: number) => void;
 }
 
-export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: PolicialTableProps) {
+export function PolicialTable({ 
+  policiais, 
+  onViewDetails, 
+  onNewAfastamento,
+  onNewRestricao 
+}: PolicialTableProps) {
   if (policiais.length === 0) {
     return (
       <div className="bg-card rounded-xl border p-12 text-center">
-        <UserX className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+        <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
         <h3 className="text-lg font-medium text-muted-foreground">
           Nenhum policial encontrado
         </h3>
@@ -30,6 +37,13 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
     return TIPOS_AFASTAMENTO.find(t => t.value === tipo)?.label || tipo;
   };
 
+  const getCodigosTooltip = (codigos: string[]) => {
+    return codigos.map(c => {
+      const info = CODIGOS_RESTRICAO.find(cr => cr.value === c);
+      return info ? `${c} - ${info.descricao}` : c;
+    }).join("\n");
+  };
+
   return (
     <div className="bg-card rounded-xl border overflow-hidden">
       <div className="overflow-x-auto">
@@ -40,22 +54,22 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
               <th>Nome de Guerra</th>
               <th>Posto</th>
               <th>Status</th>
-              <th>Afastamento Ativo</th>
+              <th>Detalhes</th>
               <th className="text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
             {policiais.map((policial) => {
-              const isAfastado = policial.statusResult.status === "AFASTADO";
-              const afastamento = policial.statusResult.afastamentoAtivo;
+              const { status, afastamentoAtivo, restricaoAtiva } = policial.statusResult;
 
-              // Status conforme BG PM 166/2006
               return (
                 <tr
                   key={policial.id}
                   className={cn(
                     "animate-fade-in",
-                    isAfastado ? "row-afastado" : "row-apto"
+                    status === "AFASTADO" && "row-afastado",
+                    status === "APTO_COM_RESTRICAO" && "row-restricao",
+                    status === "APTO" && "row-apto"
                   )}
                 >
                   <td>
@@ -72,30 +86,51 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
                     </Badge>
                   </td>
                   <td>
-                    {/* Badge com terminologia BG PM 166/2006 */}
                     <Badge
                       className={cn(
                         "font-medium",
-                        isAfastado ? "badge-afastado" : "badge-apto"
+                        status === "APTO" && "badge-apto",
+                        status === "APTO_COM_RESTRICAO" && "badge-restricao",
+                        status === "AFASTADO" && "badge-afastado"
                       )}
                     >
-                      {policial.statusResult.status === "APTO" ? "✓ APTO" : "✕ AFASTADO"}
+                      {status === "APTO" && "✓ APTO"}
+                      {status === "APTO_COM_RESTRICAO" && "⚠ APTO COM RESTRIÇÃO"}
+                      {status === "AFASTADO" && "✕ AFASTADO"}
                     </Badge>
                   </td>
                   <td>
-                    {afastamento ? (
+                    {afastamentoAtivo && (
                       <span className="text-sm">
-                        <span className="font-medium">{getTipoLabel(afastamento.tipo)}</span>
+                        <span className="font-medium">{getTipoLabel(afastamentoAtivo.tipo)}</span>
                         <span className="text-muted-foreground ml-1">
-                          ({formatDateBR(afastamento.dataInicio)} - {formatDateBR(afastamento.dataFim)})
+                          ({formatDateBR(afastamentoAtivo.dataInicio)} - {formatDateBR(afastamentoAtivo.dataFim)})
                         </span>
                       </span>
-                    ) : (
+                    )}
+                    {restricaoAtiva && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-sm cursor-help">
+                            <span className="font-medium text-warning">
+                              {restricaoAtiva.codigos.join(", ")}
+                            </span>
+                            <span className="text-muted-foreground ml-1">
+                              ({restricaoAtiva.totalDias} dias)
+                            </span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs whitespace-pre-line">
+                          {getCodigosTooltip(restricaoAtiva.codigos)}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {!afastamentoAtivo && !restricaoAtiva && (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </td>
                   <td>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -108,11 +143,18 @@ export function PolicialTable({ policiais, onViewDetails, onNewAfastamento }: Po
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => onNewRestricao(policial.id)}
+                        className="text-warning hover:text-warning hover:bg-warning/10"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => onNewAfastamento(policial.id)}
                         className="text-muted-foreground hover:text-foreground"
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Afastamento
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>
