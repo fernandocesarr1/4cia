@@ -505,6 +505,35 @@ export function createRestricao(data: RestricaoFormData): { success: boolean; er
   return { success: true, restricao };
 }
 
+/**
+ * Create restriction from string input (simpler form)
+ * Backend-like function that parses comma-separated codes
+ */
+interface CreateRestricaoFromStringData {
+  policialId: number;
+  codigosString: string;
+  dataInicio: string;
+  dataFim: string;
+  observacao?: string;
+}
+
+export function createRestricaoFromString(data: CreateRestricaoFromStringData): { success: boolean; error?: string; restricao?: Restricao } {
+  // Parse comma-separated codes string into array
+  const codigosArray = data.codigosString
+    .split(',')
+    .map(c => c.trim().toUpperCase())
+    .filter(c => c.length > 0) as CodigoRestricao[];
+
+  // Delegate to the main createRestricao function
+  return createRestricao({
+    policialId: data.policialId,
+    codigos: codigosArray,
+    dataInicio: data.dataInicio,
+    dataFim: data.dataFim,
+    observacao: data.observacao,
+  });
+}
+
 export function updateRestricao(id: number, data: Partial<RestricaoFormData>): { success: boolean; error?: string } {
   const restricoes = getRestricoes();
   const index = restricoes.findIndex(r => r.id === id);
