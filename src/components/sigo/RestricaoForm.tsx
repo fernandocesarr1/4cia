@@ -1,12 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
-import { AlertTriangle, X, Check } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -16,19 +13,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Policial, 
-  Restricao, 
-  CodigoRestricao,
-  CODIGOS_RESTRICAO 
-} from "@/types";
-import { 
   getPoliciaisAtivos, 
   getPolicialById,
-  getRestricaoById,
-  createRestricao,
-  updateRestricao,
-  calculateTotalDays,
-  compareDates
+  createRestricaoFromString,
 } from "@/lib/store";
 
 interface RestricaoFormProps {
@@ -37,130 +24,76 @@ interface RestricaoFormProps {
   onSuccess?: () => void;
 }
 
+// Lista de códigos válidos para referência do usuário
+const CODIGOS_VALIDOS = "AA, AB, AC, AD, AE, AF, AG, AH, AI, AJ, CF, CM, CP, DC, DI, EC, EF, EM, ES, FA, FF, FV, LP, ME, MO, PC, PE, PI, PO, PV, RC, RD, RP, SE, SP, SV, TF, TP, TR, UA, UU, VB, VP";
+
 export function RestricaoForm({ 
-  restricaoId, 
   preSelectedPolicialId, 
   onSuccess 
 }: RestricaoFormProps) {
   const { toast } = useToast();
-  const isEditing = !!restricaoId;
 
-  const [policialId, setPolicialId] = useState<string>("");
-  const [codigos, setCodigos] = useState<CodigoRestricao[]>([]);
+  // Estados simples - apenas strings
+  const [policialId, setPolicialId] = useState<string>(
+    preSelectedPolicialId ? String(preSelectedPolicialId) : ""
+  );
+  const [codigosText, setCodigosText] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [searchCode, setSearchCode] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const policiais = useMemo(() => getPoliciaisAtivos(), []);
-
-  // Calculate total days
-  const totalDias = useMemo(() => {
-    if (dataInicio && dataFim && compareDates(dataFim, dataInicio) >= 0) {
-      return calculateTotalDays(dataInicio, dataFim);
-    }
-    return 0;
-  }, [dataInicio, dataFim]);
-
-  // Filter codes based on search
-  const filteredCodigos = useMemo(() => {
-    if (!searchCode.trim()) return CODIGOS_RESTRICAO;
-    const query = searchCode.toLowerCase();
-    return CODIGOS_RESTRICAO.filter(
-      c => c.value.toLowerCase().includes(query) || 
-           c.descricao.toLowerCase().includes(query)
-    );
-  }, [searchCode]);
-
-  useEffect(() => {
-    if (preSelectedPolicialId) {
-      setPolicialId(String(preSelectedPolicialId));
-    }
-  }, [preSelectedPolicialId]);
-
-  useEffect(() => {
-    if (restricaoId) {
-      const restricao = getRestricaoById(restricaoId);
-      if (restricao) {
-        setPolicialId(String(restricao.policialId));
-        setCodigos(restricao.codigos);
-        setDataInicio(restricao.dataInicio);
-        setDataFim(restricao.dataFim);
-        setObservacao(restricao.observacao || "");
-      }
-    }
-  }, [restricaoId]);
-
-  const toggleCodigo = (codigo: CodigoRestricao) => {
-    setCodigos(prev => 
-      prev.includes(codigo) 
-        ? prev.filter(c => c !== codigo)
-        : [...prev, codigo]
-    );
-    // Clear error when user selects a code
-    if (errors.codigos) {
-      setErrors(prev => ({ ...prev, codigos: "" }));
-    }
-  };
-
-  const removeCodigo = (codigo: CodigoRestricao) => {
-    setCodigos(prev => prev.filter(c => c !== codigo));
-  };
-
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!policialId) {
-      newErrors.policialId = "Selecione um policial";
-    }
-
-    if (codigos.length === 0) {
-      newErrors.codigos = "Selecione pelo menos um código de restrição";
-    }
-
-    if (!dataInicio) {
-      newErrors.dataInicio = "Data início é obrigatória";
-    }
-
-    if (!dataFim) {
-      newErrors.dataFim = "Data fim é obrigatória";
-    }
-
-    if (dataInicio && dataFim && compareDates(dataFim, dataInicio) < 0) {
-      newErrors.dataFim = "Data fim deve ser igual ou posterior à data início";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // Lista de policiais (carregada uma vez, sem reatividade complexa)
+  const policiais = getPoliciaisAtivos();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    if (!validate()) return;
+    // Validações básicas no frontend
+    if (!policialId) {
+      toast({
+        title: "Erro",
+        description: "Selecione um policial",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
-    const data = {
+    if (!dataInicio || !dataFim) {
+      toast({
+        title: "Erro",
+        description: "Preencha as datas de início e fim",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!codigosText.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite pelo menos um código de restrição",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Enviar para o "backend" (store) que faz a validação completa
+    const result = createRestricaoFromString({
       policialId: parseInt(policialId),
-      codigos,
+      codigosString: codigosText,
       dataInicio,
       dataFim,
       observacao: observacao.trim() || undefined,
-    };
-
-    let result;
-    if (isEditing && restricaoId) {
-      result = updateRestricao(restricaoId, data);
-    } else {
-      result = createRestricao(data);
-    }
+    });
 
     if (result.success) {
       toast({
         title: "Sucesso",
-        description: isEditing 
-          ? "Restrição atualizada com sucesso" 
-          : "Restrição registrada com sucesso",
+        description: "Restrição registrada com sucesso",
       });
       onSuccess?.();
     } else {
@@ -170,6 +103,8 @@ export function RestricaoForm({
         variant: "destructive",
       });
     }
+
+    setIsSubmitting(false);
   };
 
   const selectedPolicial = policialId ? getPolicialById(parseInt(policialId)) : null;
@@ -179,14 +114,14 @@ export function RestricaoForm({
       {/* Policial Selection */}
       <div className="space-y-2">
         <Label htmlFor="policial">
-          Policial <span className="text-danger">*</span>
+          Policial <span className="text-destructive">*</span>
         </Label>
         <Select
           value={policialId}
           onValueChange={setPolicialId}
           disabled={!!preSelectedPolicialId}
         >
-          <SelectTrigger className={errors.policialId ? "border-danger" : ""}>
+          <SelectTrigger>
             <SelectValue placeholder="Selecione um policial" />
           </SelectTrigger>
           <SelectContent>
@@ -197,145 +132,64 @@ export function RestricaoForm({
             ))}
           </SelectContent>
         </Select>
-        {errors.policialId && (
-          <p className="text-sm text-danger">{errors.policialId}</p>
+        {selectedPolicial && preSelectedPolicialId && (
+          <p className="text-sm text-muted-foreground">
+            {selectedPolicial.posto} {selectedPolicial.re} - {selectedPolicial.nomeGuerra}
+          </p>
         )}
       </div>
 
       {/* Date Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="dataInicio">
-            Data Início <span className="text-danger">*</span>
+            Data Início <span className="text-destructive">*</span>
           </Label>
           <Input
             id="dataInicio"
             type="date"
             value={dataInicio}
             onChange={(e) => setDataInicio(e.target.value)}
-            className={errors.dataInicio ? "border-danger" : ""}
+            required
           />
-          {errors.dataInicio && (
-            <p className="text-sm text-danger">{errors.dataInicio}</p>
-          )}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="dataFim">
-            Data Fim <span className="text-danger">*</span>
+            Data Fim <span className="text-destructive">*</span>
           </Label>
           <Input
             id="dataFim"
             type="date"
             value={dataFim}
             onChange={(e) => setDataFim(e.target.value)}
-            className={errors.dataFim ? "border-danger" : ""}
+            required
           />
-          {errors.dataFim && (
-            <p className="text-sm text-danger">{errors.dataFim}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label>Total de Dias</Label>
-          <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
-            <span className="text-muted-foreground font-medium">
-              {totalDias > 0 ? `${totalDias} dias` : "-"}
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Selected Codes Display */}
-      {codigos.length > 0 && (
-        <div className="space-y-2">
-          <Label>Códigos Selecionados ({codigos.length})</Label>
-          <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
-            {codigos.map((codigo) => {
-              const info = CODIGOS_RESTRICAO.find(c => c.value === codigo);
-              return (
-                <Badge 
-                  key={codigo} 
-                  variant="secondary"
-                  className="badge-restricao text-sm px-2 py-1 flex items-center gap-1"
-                >
-                  {codigo}
-                  <button
-                    type="button"
-                    onClick={() => removeCodigo(codigo)}
-                    className="ml-1 hover:bg-white/20 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Codes Selection */}
+      {/* Códigos - Textarea simples */}
       <div className="space-y-2">
-        <Label>
-          Códigos de Restrição (BG PM 166/2006) <span className="text-danger">*</span>
+        <Label htmlFor="codigos">
+          Códigos de Restrição <span className="text-destructive">*</span>
         </Label>
-        <p className="text-xs text-muted-foreground">
-          Selecione um ou mais códigos de restrição
-        </p>
-        
-        {/* Search */}
-        <Input
-          placeholder="Buscar código ou descrição..."
-          value={searchCode}
-          onChange={(e) => setSearchCode(e.target.value)}
-          className="mb-2"
+        <Textarea
+          id="codigos"
+          value={codigosText}
+          onChange={(e) => setCodigosText(e.target.value)}
+          placeholder="Exemplo: EF, LP, PO, SP"
+          rows={2}
+          required
         />
-
-        {/* Codes List */}
-        <ScrollArea className={`h-60 rounded-lg border p-2 ${errors.codigos ? "border-danger" : ""}`}>
-          <div className="space-y-1">
-            {filteredCodigos.map((item) => {
-              const isSelected = codigos.includes(item.value);
-              return (
-                <div
-                  key={item.value}
-                  className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                    isSelected 
-                      ? "bg-warning/20 border border-warning/30" 
-                      : "hover:bg-muted"
-                  }`}
-                  onClick={() => toggleCodigo(item.value)}
-                >
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => toggleCodigo(item.value)}
-                    className="pointer-events-none"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={isSelected ? "default" : "outline"}
-                        className={isSelected ? "badge-restricao" : ""}
-                      >
-                        {item.value}
-                      </Badge>
-                      <span className="text-sm">{item.descricao}</span>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <Check className="h-4 w-4 text-warning" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
-        {errors.codigos && (
-          <p className="text-sm text-danger">{errors.codigos}</p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          Digite os códigos separados por vírgula. Códigos válidos (BG PM 166/2006):
+        </p>
+        <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+          {CODIGOS_VALIDOS}
+        </p>
       </div>
 
-      {/* Observation */}
+      {/* Observação */}
       <div className="space-y-2">
         <Label htmlFor="observacao">
           Observação <span className="text-muted-foreground text-xs">(opcional)</span>
@@ -344,20 +198,17 @@ export function RestricaoForm({
           id="observacao"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
-          placeholder="Observações adicionais (opcional)"
+          placeholder="Observações adicionais"
           maxLength={500}
-          rows={3}
+          rows={2}
         />
-        <p className="text-xs text-muted-foreground text-right">
-          {observacao.length}/500 caracteres
-        </p>
       </div>
 
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="submit" className="btn-pm">
+        <Button type="submit" className="btn-pm" disabled={isSubmitting}>
           <AlertTriangle className="h-4 w-4 mr-2" />
-          {isEditing ? "Atualizar Restrição" : "Salvar Restrição"}
+          {isSubmitting ? "Salvando..." : "Salvar Restrição"}
         </Button>
       </div>
     </form>
