@@ -375,6 +375,9 @@ export function deleteAfastamento(id: number): { success: boolean; error?: strin
 }
 
 // Status calculation - uses pure date string comparison
+// Terminologia conforme BG PM 166/2006:
+// APTO: Apto para o Serviço Policial Militar (sem afastamento ativo)
+// AFASTADO: Temporariamente inapto para o serviço
 export function calcularStatus(policialId: number, dataReferencia: string): StatusResult {
   const afastamentos = getAfastamentosByPolicialId(policialId);
 
@@ -385,7 +388,8 @@ export function calcularStatus(policialId: number, dataReferencia: string): Stat
     }
   }
 
-  return { status: "PLENO", afastamentoAtivo: null };
+  // Retorna APTO conforme nomenclatura BG PM 166/2006
+  return { status: "APTO", afastamentoAtivo: null };
 }
 
 // Auditoria

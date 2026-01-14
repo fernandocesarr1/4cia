@@ -1,34 +1,38 @@
 import { Users, UserCheck, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Props renomeadas conforme BG PM 166/2006
 interface StatsCardsProps {
   total: number;
-  plenos: number;
+  aptos: number;
   afastados: number;
 }
 
-export function StatsCards({ total, plenos, afastados }: StatsCardsProps) {
+// Terminologia conforme BG PM 166/2006:
+// APTO: Apto para o Serviço Policial Militar
+// AFASTADO: Temporariamente inapto para o serviço
+export function StatsCards({ total, aptos, afastados }: StatsCardsProps) {
   const cards = [
     {
-      label: "Total Efetivo",
+      label: "Efetivo Total",
       value: total,
       icon: Users,
       variant: "total" as const,
-      description: "Policiais ativos",
+      description: "Policiais ativos na unidade",
     },
     {
-      label: "Plenos",
-      value: plenos,
+      label: "Aptos",
+      value: aptos,
       icon: UserCheck,
-      variant: "pleno" as const,
-      description: "Disponíveis para serviço",
+      variant: "apto" as const,
+      description: "Aptos para o Serviço Policial Militar",
     },
     {
       label: "Afastados",
       value: afastados,
       icon: UserX,
       variant: "afastado" as const,
-      description: "Em afastamento",
+      description: "Temporariamente inaptos",
     },
   ];
 
@@ -40,7 +44,7 @@ export function StatsCards({ total, plenos, afastados }: StatsCardsProps) {
           className={cn(
             "stats-card p-5 card-hover",
             card.variant === "total" && "stats-card-total",
-            card.variant === "pleno" && "stats-card-pleno",
+            card.variant === "apto" && "stats-card-apto",
             card.variant === "afastado" && "stats-card-afastado"
           )}
         >
@@ -60,7 +64,7 @@ export function StatsCards({ total, plenos, afastados }: StatsCardsProps) {
               className={cn(
                 "p-3 rounded-xl",
                 card.variant === "total" && "bg-primary/10 text-primary",
-                card.variant === "pleno" && "bg-success/20 text-success",
+                card.variant === "apto" && "bg-success/20 text-success",
                 card.variant === "afastado" && "bg-danger/20 text-danger"
               )}
             >

@@ -158,13 +158,14 @@ export function PolicialDetails() {
           <div className="flex items-center gap-4">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Status Atual</p>
+              {/* Badge com terminologia BG PM 166/2006 */}
               <Badge
                 className={cn(
                   "text-base px-3 py-1",
-                  currentStatus.status === "PLENO" ? "badge-pleno" : "badge-afastado"
+                  currentStatus.status === "APTO" ? "badge-apto" : "badge-afastado"
                 )}
               >
-                {currentStatus.status}
+                {currentStatus.status === "APTO" ? "✓ APTO" : "✕ AFASTADO"}
               </Badge>
             </div>
             {currentStatus.afastamentoAtivo && (

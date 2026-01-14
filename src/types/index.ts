@@ -1,8 +1,13 @@
 // Enums
+// Terminologia conforme BG PM 166/2006 e BG PM 232/2008
 export type Posto = "SD" | "CB" | "SGT" | "ST" | "TEN" | "CAP";
 export type TipoAfastamento = "FERIAS" | "MEDICO" | "LICENCA" | "CURSO" | "OUTROS";
 export type AcaoAuditoria = "CREATE" | "UPDATE" | "DELETE";
-export type StatusOperacional = "PLENO" | "AFASTADO";
+// Status Operacional conforme BG PM 166/2006:
+// APTO: Apto para o Serviço Policial Militar
+// APTO_COM_RESTRICAO: Apto para o SPM com limitações funcionais
+// AFASTADO: Temporariamente inapto para o serviço
+export type StatusOperacional = "APTO" | "APTO_COM_RESTRICAO" | "AFASTADO";
 
 // Entities
 export interface Policial {

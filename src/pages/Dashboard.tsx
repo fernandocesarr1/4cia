@@ -52,11 +52,12 @@ export default function Dashboard() {
     );
   }, [policiais, searchQuery]);
 
+  // Contagem de status conforme BG PM 166/2006
   const stats = useMemo(() => {
     const total = policiais.length;
-    const plenos = policiais.filter(p => p.statusResult.status === "PLENO").length;
+    const aptos = policiais.filter(p => p.statusResult.status === "APTO").length;
     const afastados = policiais.filter(p => p.statusResult.status === "AFASTADO").length;
-    return { total, plenos, afastados };
+    return { total, aptos, afastados };
   }, [policiais]);
 
   const afastamentosAtivos = useMemo(() => {
@@ -118,10 +119,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Terminologia BG PM 166/2006 */}
       <StatsCards
         total={stats.total}
-        plenos={stats.plenos}
+        aptos={stats.aptos}
         afastados={stats.afastados}
       />
 

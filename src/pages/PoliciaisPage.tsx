@@ -139,12 +139,13 @@ export default function PoliciaisPage() {
                       </Badge>
                     </td>
                     <td>
+                      {/* Badge com terminologia BG PM 166/2006 */}
                       <Badge
                         className={cn(
-                          status.status === "PLENO" ? "badge-pleno" : "badge-afastado"
+                          status.status === "APTO" ? "badge-apto" : "badge-afastado"
                         )}
                       >
-                        {status.status}
+                        {status.status === "APTO" ? "✓ APTO" : "✕ AFASTADO"}
                       </Badge>
                     </td>
                     <td>
