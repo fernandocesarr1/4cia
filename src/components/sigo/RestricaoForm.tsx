@@ -1,9 +1,12 @@
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useState, useMemo } from "react";
+import { AlertTriangle, Check, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -12,10 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { CODIGOS_RESTRICAO, CodigoRestricao } from "@/types";
 import { 
   getPoliciaisAtivos, 
   getPolicialById,
-  createRestricaoFromString,
+  createRestricao,
+  calculateTotalDays,
 } from "@/lib/store";
 
 interface RestricaoFormProps {
@@ -24,33 +29,74 @@ interface RestricaoFormProps {
   onSuccess?: () => void;
 }
 
-// Lista de códigos válidos para referência do usuário
-const CODIGOS_VALIDOS = "AA, AB, AC, AD, AE, AF, AG, AH, AI, AJ, CF, CM, CP, DC, DI, EC, EF, EM, ES, FA, FF, FV, LP, ME, MO, PC, PE, PI, PO, PV, RC, RD, RP, SE, SP, SV, TF, TP, TR, UA, UU, VB, VP";
-
 export function RestricaoForm({ 
   preSelectedPolicialId, 
   onSuccess 
 }: RestricaoFormProps) {
   const { toast } = useToast();
 
-  // Estados simples - apenas strings
+  // Estados simples
   const [policialId, setPolicialId] = useState<string>(
     preSelectedPolicialId ? String(preSelectedPolicialId) : ""
   );
-  const [codigosText, setCodigosText] = useState("");
+  const [selectedCodigos, setSelectedCodigos] = useState<CodigoRestricao[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [observacao, setObservacao] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Lista de policiais (carregada uma vez, sem reatividade complexa)
-  const policiais = getPoliciaisAtivos();
+  // Lista de policiais
+  const policiais = useMemo(() => getPoliciaisAtivos(), []);
+
+  // Filtrar códigos baseado na busca
+  const filteredCodigos = useMemo(() => {
+    if (!searchQuery.trim()) return CODIGOS_RESTRICAO;
+    const query = searchQuery.toLowerCase();
+    return CODIGOS_RESTRICAO.filter(
+      c => c.value.toLowerCase().includes(query) || 
+           c.descricao.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
+  // Calcular total de dias
+  const totalDias = useMemo(() => {
+    if (!dataInicio || !dataFim) return 0;
+    if (dataFim < dataInicio) return 0;
+    return calculateTotalDays(dataInicio, dataFim);
+  }, [dataInicio, dataFim]);
+
+  const handleToggleCodigo = (codigo: CodigoRestricao) => {
+    setSelectedCodigos(prev => {
+      if (prev.includes(codigo)) {
+        return prev.filter(c => c !== codigo);
+      } else {
+        return [...prev, codigo];
+      }
+    });
+  };
+
+  const handleRemoveCodigo = (codigo: CodigoRestricao) => {
+    setSelectedCodigos(prev => prev.filter(c => c !== codigo));
+  };
+
+  const handleSelectAll = () => {
+    const codigosVisiveis = filteredCodigos.map(c => c.value);
+    setSelectedCodigos(prev => {
+      const novos = codigosVisiveis.filter(c => !prev.includes(c));
+      return [...prev, ...novos] as CodigoRestricao[];
+    });
+  };
+
+  const handleClearAll = () => {
+    setSelectedCodigos([]);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validações básicas no frontend
+    // Validações
     if (!policialId) {
       toast({
         title: "Erro",
@@ -71,20 +117,30 @@ export function RestricaoForm({
       return;
     }
 
-    if (!codigosText.trim()) {
+    if (dataFim < dataInicio) {
       toast({
         title: "Erro",
-        description: "Digite pelo menos um código de restrição",
+        description: "Data fim deve ser igual ou posterior à data início",
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
-    // Enviar para o "backend" (store) que faz a validação completa
-    const result = createRestricaoFromString({
+    if (selectedCodigos.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Selecione pelo menos um código de restrição",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Criar restrição
+    const result = createRestricao({
       policialId: parseInt(policialId),
-      codigosString: codigosText,
+      codigos: selectedCodigos,
       dataInicio,
       dataFim,
       observacao: observacao.trim() || undefined,
@@ -124,7 +180,7 @@ export function RestricaoForm({
           <SelectTrigger>
             <SelectValue placeholder="Selecione um policial" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             {policiais.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>
                 {p.posto} {p.re} - {p.nomeGuerra}
@@ -168,36 +224,116 @@ export function RestricaoForm({
         </div>
       </div>
 
-      {/* Códigos - Textarea simples */}
-      <div className="space-y-2">
-        <Label htmlFor="codigos">
-          Códigos de Restrição <span className="text-destructive">*</span>
-        </Label>
-        <Textarea
-          id="codigos"
-          value={codigosText}
-          onChange={(e) => setCodigosText(e.target.value)}
-          placeholder="Exemplo: EF, LP, PO, SP"
-          rows={2}
-          required
-        />
+      {/* Total Dias - Calculated */}
+      {totalDias > 0 && (
+        <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Total de dias:</span>
+          <span className="font-bold text-lg">{totalDias} dias</span>
+        </div>
+      )}
+
+      {/* Códigos de Restrição - Multi-select */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label>
+            Códigos de Restrição <span className="text-destructive">*</span>
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {selectedCodigos.length} selecionado(s)
+          </span>
+        </div>
+
+        {/* Códigos selecionados */}
+        {selectedCodigos.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 p-3 bg-warning/10 rounded-lg border border-warning/30">
+            {selectedCodigos.map((codigo) => (
+              <Badge
+                key={codigo}
+                variant="outline"
+                className="border-warning bg-warning/20 text-warning-foreground cursor-pointer hover:bg-warning/30 flex items-center gap-1"
+                onClick={() => handleRemoveCodigo(codigo)}
+              >
+                {codigo}
+                <X className="h-3 w-3" />
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Busca e ações */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar código ou descrição..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={handleSelectAll}>
+            Todos
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={handleClearAll}>
+            Limpar
+          </Button>
+        </div>
+
+        {/* Lista de códigos */}
+        <ScrollArea className="h-48 border rounded-lg">
+          <div className="p-2 space-y-1">
+            {filteredCodigos.map((codigo) => {
+              const isSelected = selectedCodigos.includes(codigo.value);
+              return (
+                <label
+                  key={codigo.value}
+                  className={`flex items-start gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                    isSelected 
+                      ? "bg-warning/10 border border-warning/30" 
+                      : "hover:bg-muted"
+                  }`}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => handleToggleCodigo(codigo.value)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">{codigo.value}</span>
+                      {isSelected && (
+                        <Check className="h-3 w-3 text-warning" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {codigo.descricao}
+                    </p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
         <p className="text-xs text-muted-foreground">
-          Digite os códigos separados por vírgula. Códigos válidos (BG PM 166/2006):
-        </p>
-        <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-          {CODIGOS_VALIDOS}
+          Selecione um ou mais códigos conforme BG PM 166/2006
         </p>
       </div>
 
       {/* Observação */}
       <div className="space-y-2">
-        <Label htmlFor="observacao">
-          Observação <span className="text-muted-foreground text-xs">(opcional)</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="observacao">
+            Observação <span className="text-muted-foreground text-xs">(opcional)</span>
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {observacao.length}/500
+          </span>
+        </div>
         <Textarea
           id="observacao"
           value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
+          onChange={(e) => setObservacao(e.target.value.slice(0, 500))}
           placeholder="Observações adicionais"
           maxLength={500}
           rows={2}
