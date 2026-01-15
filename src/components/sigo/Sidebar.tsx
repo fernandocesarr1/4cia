@@ -30,7 +30,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-foreground/50 z-40 md:hidden"
+          className="fixed inset-0 bg-foreground/50 z-40 md:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
@@ -38,14 +38,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
+          "fixed left-0 top-0 z-50 h-full w-64 bg-sidebar text-sidebar-foreground transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 flex flex-col",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Mobile header */}
-        <div className="flex items-center justify-between p-4 md:hidden">
+        <div className="flex items-center justify-between p-4 md:hidden border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6" />
+            <div className="bg-sidebar-accent p-1.5 rounded-lg">
+              <Shield className="h-5 w-5" />
+            </div>
             <span className="font-bold">SIGO</span>
           </div>
           <Button
@@ -70,7 +72,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -85,17 +87,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )}
               >
-                <item.icon className="h-5 w-5" />
-                {item.label}
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border">
+        <div className="p-4 border-t border-sidebar-border mt-auto">
           <p className="text-xs text-sidebar-foreground/50 text-center">
-            v1.0.0 • Polícia Militar
+            SIGO v1.0.0 • Polícia Militar
           </p>
         </div>
       </aside>

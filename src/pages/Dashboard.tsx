@@ -1,9 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Download, CalendarDays } from "lucide-react";
+import { Search, Plus, Download, CalendarDays, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +23,7 @@ import { StatsCards } from "@/components/sigo/StatsCards";
 import { PolicialTable } from "@/components/sigo/PolicialTable";
 import { AfastamentoStats } from "@/components/sigo/AfastamentoStats";
 import { RestricaoForm } from "@/components/sigo/RestricaoForm";
-import { PolicialComStatus, Afastamento } from "@/types";
+import { PolicialComStatus, Afastamento, StatusOperacional } from "@/types";
 import { 
   getPoliciaisAtivos, 
   calcularStatus, 
@@ -31,6 +38,7 @@ export default function Dashboard() {
 
   const [dataReferencia, setDataReferencia] = useState(getTodayString());
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [policiais, setPoliciais] = useState<PolicialComStatus[]>([]);
   const [showRestricaoModal, setShowRestricaoModal] = useState(false);
   const [selectedPolicialId, setSelectedPolicialId] = useState<number | null>(null);
@@ -50,15 +58,25 @@ export default function Dashboard() {
   };
 
   const filteredPoliciais = useMemo(() => {
-    if (!searchQuery.trim()) return policiais;
-    
-    const query = searchQuery.toLowerCase();
-    return policiais.filter(p => 
-      p.re.toLowerCase().includes(query) ||
-      p.nomeGuerra.toLowerCase().includes(query) ||
-      p.nome.toLowerCase().includes(query)
-    );
-  }, [policiais, searchQuery]);
+    let result = policiais;
+
+    // Filtro por status
+    if (statusFilter !== "todos") {
+      result = result.filter(p => p.statusResult.status === statusFilter);
+    }
+
+    // Filtro por busca
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(p => 
+        p.re.toLowerCase().includes(query) ||
+        p.nomeGuerra.toLowerCase().includes(query) ||
+        p.nome.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [policiais, searchQuery, statusFilter]);
 
   // Contagem de status conforme BG PM 166/2006
   const stats = useMemo(() => {
@@ -144,16 +162,35 @@ export default function Dashboard() {
       {/* Afastamentos Stats */}
       <AfastamentoStats afastamentosAtivos={afastamentosAtivos} />
 
-      {/* Search and Actions */}
+      {/* Search, Filter and Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por RE ou nome de guerra..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          {/* Search */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por RE ou nome..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="todos">Todos os Status</SelectItem>
+                <SelectItem value="APTO">✓ Aptos</SelectItem>
+                <SelectItem value="APTO_COM_RESTRICAO">⚠ Aptos com Restrição</SelectItem>
+                <SelectItem value="AFASTADO">✕ Afastados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -169,9 +206,15 @@ export default function Dashboard() {
       </div>
 
       {/* Results count */}
-      {searchQuery && (
+      {(searchQuery || statusFilter !== "todos") && (
         <p className="text-sm text-muted-foreground">
-          {filteredPoliciais.length} resultado(s) para "{searchQuery}"
+          {filteredPoliciais.length} resultado(s) 
+          {searchQuery && ` para "${searchQuery}"`}
+          {statusFilter !== "todos" && ` com status ${
+            statusFilter === "APTO" ? "Apto" : 
+            statusFilter === "APTO_COM_RESTRICAO" ? "Apto com Restrição" : 
+            "Afastado"
+          }`}
         </p>
       )}
 
