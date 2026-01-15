@@ -279,15 +279,15 @@ export function RestricaoForm({
           </Button>
         </div>
 
-        {/* Lista de códigos */}
-        <ScrollArea className="h-48 border rounded-lg">
-          <div className="p-2 space-y-1">
+        {/* Lista de códigos - Layout de 2 colunas */}
+        <ScrollArea className="h-64 border rounded-lg">
+          <div className="p-2 grid grid-cols-2 gap-1">
             {filteredCodigos.map((codigo) => {
               const isSelected = selectedCodigos.includes(codigo.value);
               return (
                 <label
                   key={codigo.value}
-                  className={`flex items-start gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                  className={`flex items-start gap-2 p-2 rounded-md cursor-pointer transition-colors ${
                     isSelected 
                       ? "bg-warning/10 border border-warning/30" 
                       : "hover:bg-muted"
@@ -296,16 +296,16 @@ export function RestricaoForm({
                   <Checkbox
                     checked={isSelected}
                     onCheckedChange={() => handleToggleCodigo(codigo.value)}
-                    className="mt-0.5"
+                    className="mt-0.5 shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{codigo.value}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-bold text-xs">{codigo.value}</span>
                       {isSelected && (
-                        <Check className="h-3 w-3 text-warning" />
+                        <Check className="h-3 w-3 text-warning shrink-0" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
                       {codigo.descricao}
                     </p>
                   </div>
